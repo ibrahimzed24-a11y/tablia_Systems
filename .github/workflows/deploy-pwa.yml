@@ -1,0 +1,79 @@
+name: CI and deploy staff PWA
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-pwa-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # No lockfile is committed yet: commit package-lock.json after the first local install, then switch to `npm ci` and `cache: npm`.
+      - run: npm install --no-audit --no-fund
+      - name: Refuse committed secrets
+        run: |
+          if git grep -nE "(eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}|sk_live_|service_role[\"' ]*[:=][\"' ]*[A-Za-z0-9])" -- ':!*.md' ':!.env.example'; then
+            echo "Possible secret committed"; exit 1; fi
+      - run: npx turbo run lint typecheck build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+  deploy-vercel:
+    needs: ci
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      TARGET: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'production' || 'preview' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Skip when Vercel secrets are missing
+        if: env.VERCEL_TOKEN == ''
+        run: echo "VERCEL_TOKEN not set, skipping deploy"
+      - if: env.VERCEL_TOKEN != ''
+        run: npm install --global vercel@latest
+      - if: env.VERCEL_TOKEN != ''
+        run: vercel pull --yes --environment=$TARGET --token="$VERCEL_TOKEN"
+      - if: env.VERCEL_TOKEN != '' && env.TARGET == 'production'
+        run: vercel build --prod --token="$VERCEL_TOKEN" && vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+      - if: env.VERCEL_TOKEN != '' && env.TARGET == 'preview'
+        run: vercel build --token="$VERCEL_TOKEN" && vercel deploy --prebuilt --token="$VERCEL_TOKEN"
+
+  deploy-supabase:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - if: env.SUPABASE_ACCESS_TOKEN == ''
+        run: echo "Supabase secrets not set, skipping migrations and function deploy"
+      - if: env.SUPABASE_ACCESS_TOKEN != ''
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
+          supabase db push -p "$SUPABASE_DB_PASSWORD"
+          supabase functions deploy verify-provision-qr --project-ref "$SUPABASE_PROJECT_REF"

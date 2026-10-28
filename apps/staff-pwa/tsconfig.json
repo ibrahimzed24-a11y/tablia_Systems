@@ -1,0 +1,5 @@
+{
+  "extends": "@mela-rossa/ts-config/react.json",
+  "compilerOptions": { "types": ["vite/client", "vite-plugin-pwa/client"] },
+  "include": ["src"]
+}

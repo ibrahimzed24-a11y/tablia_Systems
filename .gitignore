@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dev-dist/
+.turbo/
+.vercel/
+.env
+.env.*
+!.env.example
+*.local
+backups/
+supabase/.branches/
+supabase/.temp/
+supabase/functions/.env
+.DS_Store

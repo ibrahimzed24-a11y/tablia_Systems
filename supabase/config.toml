@@ -1,0 +1,33 @@
+project_id = "mela-rossa-admin"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[db.seed]
+enabled = false  # the menu seed is a migration, so `supabase db push` seeds production too
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = false  # staff only join through the QR code (docs/sops/05)
+
+[auth.email]
+enable_signup = false
+
+[edge_runtime]
+enabled = true
+
+[functions.verify-provision-qr]
+verify_jwt = false  # the function checks the caller itself: issue needs a staff JWT, redeem needs the QR token
+import_map = "./functions/verify-provision-qr/deno.json"
