@@ -34,6 +34,10 @@ with every booking and WhatsApp request in a final state and nothing waiting to 
 - **The badge stays red with pending changes for more than 10 minutes on Wi-Fi:** follow SOP 07, "When it goes wrong".
 - **The tablet is lost:** a manager revokes it straight away (SOP 05, "Revoke a lost device").
 
+## Operations tasks (added with the operations engine)
+- **Opening:** after step 7, open **Operations** and start the opening tasks assigned to you (SOP 11).
+- **Closing:** before locking the tablet, submit your closing tasks for verification. The shift manager verifies or fails them before leaving.
+
 ---
 
 ## بالمصري (للـ front desk والمطبخ)
@@ -53,3 +57,5 @@ with every booking and WhatsApp request in a final state and nothing waiting to 
 ٤. اقفل التابلت، بس متعملش Sign out.
 
 **لو حصلت مشكلة:** لو الأبلكيشن طلب منك تسجيل دخول أو بيوري فرع غلط، كلم المدير على طول.
+
+**مهام التشغيل:** افتح تبويب التشغيل وابدأ المهام اللي باسمك، وفي القفل ابعتها للمراجعة قبل ما تقفل التابلت.

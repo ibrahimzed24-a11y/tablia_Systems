@@ -1,14 +1,15 @@
 -- Mela Rossa admin: core schema. See docs/sops 02, 03, 04, 05, 06, 10.
+-- Types and branches are guarded because 20261029000000_admin_operations.sql (which sorts first) also creates them.
 create extension if not exists pgcrypto;
 create schema if not exists app;
 
-create type public.staff_role as enum ('admin', 'manager', 'front_desk', 'kitchen');
-create type public.branch_code as enum ('corniche', 'new_damietta');
-create type public.booking_status as enum ('pending', 'confirmed', 'seated', 'completed', 'cancelled', 'no_show');
-create type public.booking_source as enum ('phone', 'walk_in', 'whatsapp', 'website');
-create type public.wa_status as enum ('new', 'replied', 'converted', 'closed');
+do $$ begin if to_regtype('public.staff_role') is null then create type public.staff_role as enum ('admin', 'manager', 'front_desk', 'kitchen'); end if; end $$;
+do $$ begin if to_regtype('public.branch_code') is null then create type public.branch_code as enum ('corniche', 'new_damietta'); end if; end $$;
+do $$ begin if to_regtype('public.booking_status') is null then create type public.booking_status as enum ('pending', 'confirmed', 'seated', 'completed', 'cancelled', 'no_show'); end if; end $$;
+do $$ begin if to_regtype('public.booking_source') is null then create type public.booking_source as enum ('phone', 'walk_in', 'whatsapp', 'website'); end if; end $$;
+do $$ begin if to_regtype('public.wa_status') is null then create type public.wa_status as enum ('new', 'replied', 'converted', 'closed'); end if; end $$;
 
-create table public.branches (
+create table if not exists public.branches (
   code public.branch_code primary key,
   name_en text not null,
   name_ar text not null,
@@ -16,7 +17,8 @@ create table public.branches (
 );
 insert into public.branches values
   ('corniche', 'Nile Corniche', 'الكورنيش', '01280060772'),
-  ('new_damietta', 'New Damietta', 'دمياط الجديدة', '01280060772');
+  ('new_damietta', 'New Damietta', 'دمياط الجديدة', '01280060772')
+on conflict (code) do nothing;
 
 create table public.staff (
   id uuid primary key references auth.users (id) on delete cascade,

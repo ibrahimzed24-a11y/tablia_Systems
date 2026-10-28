@@ -54,3 +54,12 @@ Generate random secrets with a password manager or `openssl rand -base64 48`. Ne
 ## When it goes wrong
 - **CI fails on main:** do not deploy by hand. Fix forward or revert the commit.
 - **A secret was committed:** rotate it **first**, then remove it from the history. Rotation is what makes it safe; deleting the file is not. Follow SOP 10.
+
+## Operations engine (2026-10-29)
+- Edge functions: `verify-provision-qr` and `export-branch-analytics`. The workflow deploys both on a push to `main`.
+- `20261029000000_admin_operations.sql` sorts before the first two migrations but runs in either order, and the workflow now uses
+  `supabase db push --include-all`, so a database that already has the later migrations still receives it.
+  `20261029000100_schema.sql` gained only `if not exists` guards (types, branches) in the same change, so it can follow it on a new database.
+- `export-branch-analytics` needs no new secret: it uses `SUPABASE_URL` and `SUPABASE_ANON_KEY` (injected by Supabase), the caller's JWT,
+  and `ALLOWED_ORIGINS` for CORS. Every origin the app is opened from must be in `ALLOWED_ORIGINS`.
+- App, optional: `VITE_ANALYTICS_FUNCTION_URL` (defaults to `$VITE_SUPABASE_URL/functions/v1/export-branch-analytics`).

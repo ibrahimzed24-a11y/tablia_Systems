@@ -31,3 +31,7 @@ enabled = true
 [functions.verify-provision-qr]
 verify_jwt = false  # the function checks the caller itself: issue needs a staff JWT, redeem needs the QR token
 import_map = "./functions/verify-provision-qr/deno.json"
+
+[functions.export-branch-analytics]
+verify_jwt = false  # the function verifies the caller's JWT itself (Supabase Auth) and answers the CORS preflight
+import_map = "./functions/export-branch-analytics/deno.json"

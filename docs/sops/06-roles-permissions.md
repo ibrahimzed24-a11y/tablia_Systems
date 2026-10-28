@@ -47,3 +47,17 @@ Hiding a button is not security; RLS is.
 ## When it goes wrong
 - **Someone can see more than they should:** set them inactive (blocks immediately), then fix the policy in a new migration and follow SOP 10 if guest data was exposed.
 - **The only admin is locked out:** a project owner runs `update staff set role='admin', active=true where id='<uuid>'` from the Supabase SQL editor. Log it.
+
+## Operations engine permissions (SOP 11)
+
+| Action | admin | manager | front_desk | kitchen |
+| --- | --- | --- | --- | --- |
+| See tasks and SOPs of their branch | yes | yes | yes | yes |
+| Create, assign, verify, fail, reopen tasks | both branches | own branch | no | no |
+| Start and submit a task assigned to them | yes | yes | yes | yes |
+| Publish an SOP | both branches | own branch (both if their staff row has no branch) | no | no |
+| Export the tasks CSV | yes | own branch | no | no |
+| Delete a task or an SOP | yes | no | no | no |
+
+Enforced by RLS and the task trigger in `20261029000000_admin_operations.sql`. Role and branch are read from `public.staff`
+(the same rule as above), never from `user_metadata`, which any signed-in user can change.

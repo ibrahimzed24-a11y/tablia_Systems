@@ -8,11 +8,12 @@ import {
   type Booking, type BookingStatus, type Branch, type Conflict, type Device, type MenuItem, type MenuSection, type Role, type Staff, type WaRequest,
 } from './lib/core';
 import { identify, track } from './lib/telemetry';
+import { OpsConsole } from './OpsConsole';
 
 // ---- i18n: English and Egyptian Arabic (RTL) ----
 type Lang = 'en' | 'ar';
 const EN = {
-  menu: 'Menu', bookings: 'Bookings', whatsapp: 'WhatsApp', staff: 'Staff', search: 'Search', soldOut: 'Sold out', available: 'Available',
+  ops: 'Operations', menu: 'Menu', bookings: 'Bookings', whatsapp: 'WhatsApp', staff: 'Staff', search: 'Search', soldOut: 'Sold out', available: 'Available',
   soldToday: 'Sold out today', soldNoEnd: 'Sold out, no end', edit: 'Edit', save: 'Save', cancel: 'Cancel', addItem: 'Add item', askPrice: 'Ask for price',
   nameAr: 'Arabic name', nameEn: 'English name', price: 'Price (EGP)', group: 'Group', newBooking: 'New booking', date: 'Date', time: 'Time',
   guests: 'Guests', branch: 'Branch', guestName: 'Guest name', phone: 'Phone', notes: 'Notes', covers: 'Covers today', newRequest: 'New request',
@@ -29,7 +30,7 @@ const EN = {
 };
 type Dict = typeof EN;
 const AR: Dict = {
-  menu: 'المنيو', bookings: 'الحجوزات', whatsapp: 'واتساب', staff: 'الموظفين', search: 'دوّر', soldOut: 'خلص', available: 'متاح',
+  ops: 'التشغيل', menu: 'المنيو', bookings: 'الحجوزات', whatsapp: 'واتساب', staff: 'الموظفين', search: 'دوّر', soldOut: 'خلص', available: 'متاح',
   soldToday: 'خلص النهارده', soldNoEnd: 'خلص لحد ما نرجّعه', edit: 'تعديل', save: 'حفظ', cancel: 'إلغاء', addItem: 'صنف جديد', askPrice: 'اسأل عن السعر',
   nameAr: 'الاسم بالعربي', nameEn: 'الاسم بالإنجليزي', price: 'السعر (ج.م)', group: 'المجموعة', newBooking: 'حجز جديد', date: 'اليوم', time: 'الساعة',
   guests: 'عدد الأفراد', branch: 'الفرع', guestName: 'اسم الضيف', phone: 'الموبايل', notes: 'ملاحظات', covers: 'أفراد النهارده', newRequest: 'طلب جديد',
@@ -56,7 +57,7 @@ export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [staff, setStaff] = useState<Staff | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'menu' | 'bookings' | 'whatsapp' | 'staff'>('menu');
+  const [tab, setTab] = useState<'menu' | 'bookings' | 'whatsapp' | 'staff' | 'ops'>('menu');
 
   const loadStaff = useCallback(async (s: Session | null) => {
     if (!s) { setStaff(null); return; }
@@ -79,8 +80,8 @@ export function App() {
   if (loading) return shell(<p className="text-white/60">…</p>);
   if (!session || !staff || !staff.active) return shell(<Card>{t.signedOut}</Card>);
   const me = staff;
-  const tabs = (['menu', 'bookings', 'whatsapp', 'staff'] as const).filter((k) =>
-    k === 'menu' || k === 'bookings' || (k === 'whatsapp' && can(me.role, 'whatsapp')) || (k === 'staff' && can(me.role, 'staff')));
+  const tabs = (['menu', 'bookings', 'whatsapp', 'staff', 'ops'] as const).filter((k) =>
+    k === 'menu' || k === 'ops' || k === 'bookings' || (k === 'whatsapp' && can(me.role, 'whatsapp')) || (k === 'staff' && can(me.role, 'staff')));
 
   return (
     <>
@@ -94,7 +95,7 @@ export function App() {
           <SyncBadge t={t} staffId={me.id} />
           <Button variant="ghost" onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}>{lang === 'ar' ? 'EN' : 'عربي'}</Button>
         </div>
-        <nav className="mx-auto flex max-w-5xl gap-1 px-3 pb-2">
+        <nav className="mx-auto flex max-w-5xl flex-wrap gap-1 px-3 pb-2">
           {tabs.map((k) => <Button key={k} variant={tab === k ? 'primary' : 'secondary'} onClick={() => setTab(k)}>{t[k]}</Button>)}
         </nav>
       </header>
@@ -103,6 +104,7 @@ export function App() {
         {tab === 'bookings' && <BookingsPage t={t} me={me} />}
         {tab === 'whatsapp' && <WhatsAppPage t={t} lang={lang} me={me} />}
         {tab === 'staff' && <StaffPage t={t} me={me} token={session.access_token} />}
+        {tab === 'ops' && <OpsConsole lang={lang} me={me} />}
       </>)}
     </>
   );

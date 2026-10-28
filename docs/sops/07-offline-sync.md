@@ -43,6 +43,10 @@ All staff. The manager on shift owns the problems.
   The outbox stays on the device and is sent after sign-in **only if it is the same staff member**; otherwise it is discarded and listed for the manager.
 - **The app looks out of date after a deploy:** close all tabs of the app and open it again. The new version takes over on the next start.
 
+## Operations tasks
+The Operations tab (SOP 11) needs a connection. Task and SOP changes are not queued in the outbox: offline, the action shows an error
+and you do it again when the badge is green.
+
 ---
 
 ## بالمصري
