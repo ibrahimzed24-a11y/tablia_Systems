@@ -23,9 +23,10 @@ jobs:
           node-version: 20
       # No lockfile is committed yet: commit package-lock.json after the first local install, then switch to `npm ci` and `cache: npm`.
       - run: npm install --no-audit --no-fund
+      # The workflow files are excluded because this step's own pattern would match itself.
       - name: Refuse committed secrets
         run: |
-          if git grep -nE "(eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}|sk_live_|service_role[\"' ]*[:=][\"' ]*[A-Za-z0-9])" -- ':!*.md' ':!.env.example'; then
+          if git grep -nE "(eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}|sk_live_|service_role[\"' ]*[:=][\"' ]*[A-Za-z0-9])" -- ':!*.md' ':!.env.example' ':!.github/workflows/*'; then
             echo "Possible secret committed"; exit 1; fi
       - run: npx turbo run lint typecheck build
         env:
