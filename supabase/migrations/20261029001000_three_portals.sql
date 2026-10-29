@@ -7,12 +7,12 @@
 
 -- 1) Legacy staff PWA: scheduled jobs, audit rows of the dropped tables, tables, functions and types.
 -- pg_cron is only present where it was enabled (it is not in a fresh local database), so the unschedule is guarded.
-do $
+do $$
 begin
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
     perform cron.unschedule(j.jobname) from cron.job j where j.jobname in ('mr-purge-guest-data', 'mr-branch-metrics-hourly');
   end if;
-end $;
+end $$;
 
 delete from public.audit_log
  where entity in ('staff', 'staff_devices', 'provision_tokens', 'bookings', 'whatsapp_requests', 'whatsapp_replies', 'workflow_tasks', 'sops');
