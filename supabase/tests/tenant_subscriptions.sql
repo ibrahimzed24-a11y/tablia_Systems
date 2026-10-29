@@ -3,6 +3,7 @@
 -- create_reservation, tenant RLS, the signup profile trigger and the idempotent Paymob payment function.
 -- Everything runs in one transaction and is rolled back: no test rows are left behind.
 begin;
+set local role postgres; -- `supabase test db --linked` logs in as a non-inheriting role that cannot see the extensions schema
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 select * from no_plan();
@@ -89,7 +90,7 @@ select is((public.create_reservation('tier-enterprise', '{"email":"c@example.com
           'enterprise: event ticket accepted');
 select is((public.create_reservation('tier-enterprise', '{"email":"c@example.com"}', now() + interval '1 day', 4) ->> 'party_size')::int, 4,
           'enterprise: table reservation accepted');
-reset role;
+set local role postgres;
 
 -- ---- menu item limit ----
 select lives_ok($$ insert into public.menu_items (section_id, name_ar, price_egp, updated_by)
@@ -171,7 +172,7 @@ select pg_temp.act_as('00000000-0000-4000-f200-000000000001');
 select is(public.has_feature('live_orders_feed'), true, 'has_feature: growth has the live orders feed');
 select pg_temp.act_as('00000000-0000-4000-f300-000000000001');
 select is(public.has_feature('historical_reporting'), true, 'has_feature: enterprise has historical reporting');
-reset role;
+set local role postgres;
 
 -- ---- Paymob payments ----
 select is(public.apply_paymob_payment(9101, 7101, '00000000-0000-4000-e000-000000000004', 399900, 'EGP'), 'applied', '3,999 EGP is applied');

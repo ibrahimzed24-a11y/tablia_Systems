@@ -3,6 +3,7 @@
 -- Run against a LOCAL database after the migrations:  supabase start && supabase test db
 -- Everything runs in one transaction and is rolled back: no test rows are left behind. Never run it against production.
 begin;
+set local role postgres; -- `supabase test db --linked` logs in as a non-inheriting role that cannot see the extensions schema
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select plan(33);
@@ -60,7 +61,7 @@ select is((select count(*)::int from t_tasks), 2, 'admin sees tasks of both bran
 select ok((select count(*) from public.audit_log) > 0, 'admin reads the audit log');
 
 -- ---- manager, Corniche ----
-reset role; select pg_temp.act_as('00000000-0000-4000-a000-000000000002'); set local role authenticated;
+set local role postgres; select pg_temp.act_as('00000000-0000-4000-a000-000000000002'); set local role authenticated;
 select is((select string_agg(branch::text, ',') from t_bookings), 'corniche', 'manager sees only own-branch bookings');
 select is((select string_agg(branch::text, ',') from t_wa), 'corniche', 'manager sees only own-branch WhatsApp requests');
 select is((select string_agg(branch::text, ',') from t_tasks), 'corniche', 'manager sees only own-branch tasks');
@@ -72,7 +73,7 @@ select is((select count(*)::int from public.audit_log), 0, 'manager cannot read 
 select is((select count(*)::int from public.staff where id::text like '00000000-0000-4000-a000-%'), 7, 'manager reads the staff list');
 
 -- ---- front desk, Corniche ----
-reset role; select pg_temp.act_as('00000000-0000-4000-a000-000000000004'); set local role authenticated;
+set local role postgres; select pg_temp.act_as('00000000-0000-4000-a000-000000000004'); set local role authenticated;
 select is((select guest_phone from t_bookings where branch = 'corniche'), '01000000001', 'front desk sees guest phone at own branch');
 select is((select count(*)::int from t_bookings where branch = 'new_damietta'), 0, 'front desk does not see the other branch');
 select lives_ok($$insert into public.bookings (id, branch, booking_date, booking_time, guests, guest_name) values ('00000000-0000-4000-c000-000000000003', 'corniche', current_date, '16:00', 3, 'Walk in')$$,
@@ -86,7 +87,7 @@ select is((select count(*)::int from public.staff where id::text like '00000000-
 select isnt(public.covers_today('corniche'), null, 'front desk gets the covers count');
 
 -- ---- kitchen, Corniche ----
-reset role; select pg_temp.act_as('00000000-0000-4000-a000-000000000006'); set local role authenticated;
+set local role postgres; select pg_temp.act_as('00000000-0000-4000-a000-000000000006'); set local role authenticated;
 select is((select count(*)::int from t_bookings), 0, 'kitchen cannot read bookings or guest phones');
 select is((select count(*)::int from t_wa), 0, 'kitchen cannot read WhatsApp requests');
 select ok(public.covers_today('corniche') >= 4, 'kitchen gets the covers count without guest details');
@@ -97,15 +98,15 @@ select is((select string_agg(branch::text, ',') from t_tasks), 'corniche', 'kitc
 select is((select count(*)::int from public.menu_items where id = '00000000-0000-4000-b000-000000000002'), 1, 'kitchen reads the menu');
 
 -- ---- inactive staff ----
-reset role; select pg_temp.act_as('00000000-0000-4000-a000-000000000007'); set local role authenticated;
+set local role postgres; select pg_temp.act_as('00000000-0000-4000-a000-000000000007'); set local role authenticated;
 select is((select count(*)::int from public.menu_items where id = '00000000-0000-4000-b000-000000000002'), 0, 'inactive staff read nothing');
 
 -- ---- manager, New Damietta ----
-reset role; select pg_temp.act_as('00000000-0000-4000-a000-000000000003'); set local role authenticated;
+set local role postgres; select pg_temp.act_as('00000000-0000-4000-a000-000000000003'); set local role authenticated;
 select is((select string_agg(branch::text, ',') from t_bookings), 'new_damietta', 'New Damietta manager sees only New Damietta bookings');
 
 -- ---- results, read as the owner ----
-reset role;
+set local role postgres;
 select is((select price_egp from public.menu_items where id = '00000000-0000-4000-b000-000000000002'), 120.00::numeric, 'price is the manager''s, not the front desk''s');
 select is((select is_available from public.menu_items where id = '00000000-0000-4000-b000-000000000002'), false, 'kitchen sold-out flag was saved');
 select is((select count(*)::int from public.menu_items where id = '00000000-0000-4000-b000-000000000002'), 1, 'manager could not delete the item');
