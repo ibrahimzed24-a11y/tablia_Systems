@@ -8,6 +8,7 @@ interface ImportMetaEnv {
   readonly VITE_POSTHOG_KEY?: string;
   readonly VITE_POSTHOG_HOST?: string;
   readonly VITE_LOGROCKET_APP_ID?: string;
+  readonly VITE_TENANT_ROOT_DOMAIN?: string;
 }
 
 interface ImportMeta {
