@@ -275,11 +275,11 @@ export function OwnerConsole() {
 
 interface PageProps { lang: Lang; t: Dict }
 
-function useLoad<R>(load: () => PromiseLike<{ data: R[] | null; error: { message: string } | null }>) {
+function useLoad<R>(load: () => PromiseLike<{ data: unknown; error: { message: string } | null }>) {
   const [rows, setRows] = useState<R[]>([]);
   const [error, setError] = useState('');
   const reload = useCallback(() => {
-    load().then(({ data, error: e }) => { setRows(data ?? []); setError(e ? e.message : ''); });
+    load().then(({ data, error: e }) => { setRows((data as R[] | null) ?? []); setError(e ? e.message : ''); });
   }, [load]);
   useEffect(reload, [reload]);
   return { rows, error, reload };
