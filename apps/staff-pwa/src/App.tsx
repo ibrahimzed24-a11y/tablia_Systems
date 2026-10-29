@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import QRCode from 'qrcode';
-import { Badge, Button, Card, Field, Input, Select } from '@mela-rossa/ui';
+import { Badge, Button, Card, Field, Input, Select } from '@tablia/ui';
 import {
   BRANCHES, ROLES, anon, can, endOfDayCairo, flush, isSoldOut, outboxEvents, outboxState, provisionUrl, resolveConflict,
   submit, supabase, supabaseConfigured, todayCairo,
@@ -78,7 +78,7 @@ export function App() {
   if (location.pathname.startsWith('/provision')) return shell(<Provision t={t} />);
   if (!supabaseConfigured) return shell(<Card>{t.notConfigured}</Card>);
   if (loading) return shell(<p className="text-white/60">…</p>);
-  if (!session || !staff || !staff.active) return shell(<Card>{t.signedOut}</Card>);
+  if (!session || !staff || !staff.active) return shell(<Card>{t.signedOut} <a className="underline" href="/owner">Tablia Systems: Owner sign-in / دخول صاحب المطعم</a></Card>);
   const me = staff;
   const tabs = (['menu', 'bookings', 'whatsapp', 'staff', 'ops'] as const).filter((k) =>
     k === 'menu' || k === 'ops' || k === 'bookings' || (k === 'whatsapp' && can(me.role, 'whatsapp')) || (k === 'staff' && can(me.role, 'staff')));
@@ -89,7 +89,7 @@ export function App() {
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 p-3">
           <img src="/icon.svg" alt="" className="h-9 w-9" />
           <div className="me-auto leading-tight">
-            <div className="font-bold">Mela Rossa</div>
+            <div className="font-bold">Tablia Systems</div>
             <div className="text-xs text-white/60">{me.display_name} · {lbl(t, me.role)} · {me.branch ? lbl(t, me.branch) : t.all}</div>
           </div>
           <SyncBadge t={t} staffId={me.id} />

@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       ]));
     }
 
-    const file = `mela-rossa-${branch}-tasks-${from.toISOString().slice(0, 10)}-to-${to.toISOString().slice(0, 10)}.csv`;
+    const file = `tablia-${branch}-tasks-${from.toISOString().slice(0, 10)}-to-${to.toISOString().slice(0, 10)}.csv`;
     // The byte order mark lets Excel open the Arabic text as UTF-8.
     return new Response('\uFEFF' + lines.join('\r\n') + '\r\n', {
       status: 200,

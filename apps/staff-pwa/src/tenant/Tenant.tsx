@@ -3,8 +3,9 @@
 // The public page never writes a table: it calls place_order / create_reservation, which price on the server.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { Badge, Button, Card, Field, Input, Select, Textarea } from '@mela-rossa/ui';
+import { Badge, Button, Card, Field, Input, Select, Textarea } from '@tablia/ui';
 import { supabase } from '../lib/core';
+import { Checkout, OwnerAuth, OwnerSetup, useCheckoutDue } from './OwnerOnboarding';
 
 export type Lang = 'ar' | 'en';
 const RESERVED = new Set(['www', 'app', 'admin', 'api', 'owner', 'staff']);
@@ -223,9 +224,8 @@ export function OwnerConsole() {
   const [session, setSession] = useState<Session | null>(null);
   const [org, setOrg] = useState<string | null | undefined>(undefined);
   const [tab, setTab] = useState<Tab>('orders');
-  const [cred, setCred] = useState({ email: '', password: '' });
-  const [err, setErr] = useState('');
   const [plan, setPlan] = useState<Plan | null>(null);
+  const due = useCheckoutDue(org);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -241,19 +241,11 @@ export function OwnerConsole() {
     supabase.rpc('get_my_plan').then(({ data }) => setPlan((data as Plan | null) ?? null));
   }, [org]);
 
-  if (!session) {
-    return (
-      <main className="mx-auto max-w-sm space-y-3 p-6">
-        <div className="flex justify-between"><h1 className="text-xl font-bold">{t.signIn}</h1><Button variant="ghost" onClick={toggle}>{t.lang}</Button></div>
-        <Field label={t.email}><Input type="email" value={cred.email} onChange={(e) => setCred({ ...cred, email: e.target.value })} /></Field>
-        <Field label={t.password}><Input type="password" value={cred.password} onChange={(e) => setCred({ ...cred, password: e.target.value })} /></Field>
-        <Button onClick={async () => { const { error } = await supabase.auth.signInWithPassword(cred); setErr(error ? error.message : ''); }}>{t.signIn}</Button>
-        {err && <p className="text-sm text-red-700">{err}</p>}
-      </main>
-    );
-  }
+  if (!session) return <OwnerAuth lang={lang} toggle={toggle} />;
   if (org === undefined) return <main className="p-6">{t.loading}</main>;
-  if (org === null) return <main className="p-6">{t.noOrg} <Button variant="ghost" onClick={() => supabase.auth.signOut()}>{t.signOut}</Button></main>;
+  if (org === null) return <OwnerSetup lang={lang} toggle={toggle} onDone={setOrg} />;
+  if (due === undefined) return <main className="p-6">{t.loading}</main>;
+  if (due) return <Checkout lang={lang} toggle={toggle} tier={due} />;
   return (
     <main className="mx-auto max-w-3xl space-y-4 p-4">
       <nav className="flex flex-wrap items-center gap-2">

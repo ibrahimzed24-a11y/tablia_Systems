@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@mela-rossa/ui": "*",
+    "@tablia/ui": "*",
     "@supabase/supabase-js": "^2.45.4",
     "idb-keyval": "^6.2.1",
     "logrocket": "^8.1.2",
@@ -22,7 +22,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
-    "@mela-rossa/ts-config": "*",
+    "@tablia/ts-config": "*",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",

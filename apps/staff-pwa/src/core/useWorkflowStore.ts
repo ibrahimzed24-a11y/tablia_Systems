@@ -188,6 +188,6 @@ export async function exportBranchCsv(branch: Branch, from: string, to: string):
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(body.error ?? `HTTP ${res.status}`);
   }
-  const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? `mela-rossa-${branch}-tasks.csv`;
+  const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? `tablia-${branch}-tasks.csv`;
   return { blob: await res.blob(), name };
 }

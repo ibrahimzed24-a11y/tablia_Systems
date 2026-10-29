@@ -1,6 +1,6 @@
 // Operations console: live tasks, KPI cards, SOP publishing and CSV export (docs/sops/11-workflow-tasks.md).
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Card, Field, Input, Select, Textarea } from '@mela-rossa/ui';
+import { Badge, Button, Card, Field, Input, Select, Textarea } from '@tablia/ui';
 import { BRANCHES, supabase, todayCairo, type Branch, type Staff } from './lib/core';
 import {
   HISTORY_DAYS, OPEN_STATUSES, SOP_CATEGORIES, TASK_PRIORITIES, computeKpis, exportBranchCsv, useWorkflowStore,

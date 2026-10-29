@@ -1,4 +1,4 @@
-/** Mela Rossa brand tokens, shared by every app. */
+/** Tablia Systems brand tokens, shared by every app. */
 export default {
   theme: {
     extend: {

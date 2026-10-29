@@ -1,6 +1,6 @@
-# Mela Rossa admin
+# Tablia Systems admin
 
-Staff app for Mela Rossa Restaurant & Cafe (Nile Corniche and New Damietta): menu editing, table bookings,
+Tablia Systems staff and owner app (pilot tenant: Mela Rossa Restaurant & Cafe, Nile Corniche and New Damietta): menu editing, table bookings,
 WhatsApp requests, staff roles and the operations tasks. The SOPs in [docs/sops](docs/sops/README.md) come first; the code follows them.
 
 ## What is in the repo

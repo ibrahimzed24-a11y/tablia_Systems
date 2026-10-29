@@ -1,4 +1,4 @@
 {
-  "extends": "@mela-rossa/ts-config/react.json",
+  "extends": "@tablia/ts-config/react.json",
   "include": ["src"]
 }

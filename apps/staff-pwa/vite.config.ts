@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'Mela Rossa Staff',
+        name: 'Tablia Systems Staff',
         short_name: 'MR Staff',
-        description: 'Menu, bookings and WhatsApp requests for Mela Rossa staff',
+        description: 'Menu, bookings and WhatsApp requests for Tablia Systems staff',
         theme_color: '#121212',
         background_color: '#121212',
         display: 'standalone',
