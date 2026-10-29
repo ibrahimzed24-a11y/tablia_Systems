@@ -11,7 +11,7 @@ insert into public.platform_admins (user_id) values ('b0000000-0000-4000-8000-00
 
 -- the owner
 set local role authenticated;
-select set_config('request.jwt.claims', '{"sub":"b0000000-0000-4000-8000-0000000000b2","role":"authenticated"}', true);
+select set_config('request.jwt.claims', '{"sub":"b0000000-0000-4000-8000-0000000000b2","role":"authenticated","aal":"aal2"}', true);
 select lives_ok($$ select public.create_my_organization('Super Test Grill', 'pgtap-super-grill', 'growth') $$, 'the owner creates a restaurant');
 select throws_ok($$ select * from public.platform_admins $$, '42501', null, 'owners cannot read platform_admins');
 select throws_ok($$ insert into public.platform_admins (user_id) values (auth.uid()) $$, '42501', null, 'owners cannot make themselves super admin');
