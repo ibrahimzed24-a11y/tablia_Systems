@@ -1,4 +1,4 @@
-// Tablia tenant pages: the owner console (menu, events, customers, orders) and the public mobile page
+// Tablia tenant pages: the owner console (orders, menu, events, customers, profile, subscription) and the public mobile page
 // served on <slug>.<VITE_TENANT_ROOT_DOMAIN> (or /t/<slug> for testing). Arabic (RTL) and English.
 // The public page never writes a table: it calls place_order / create_reservation, which price on the server.
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -39,6 +39,11 @@ const T = {
     tier_starter: 'Starter (3,999 EGP)', tier_growth: 'Growth (6,999 EGP)', tier_enterprise: 'Enterprise (10,000 EGP)',
     mod_live_orders_feed: 'Live orders feed', mod_table_reservations: 'Table reservations', mod_event_ticketing: 'Live event ticketing',
     mod_historical_reporting: 'Historical reports', mod_multi_brand_menus: 'Multi-brand menus', mod_advanced_tagging: 'Advanced guest tagging',
+    profile: 'Profile', subscription: 'Subscription', ownerName: 'Your name', restaurantName: 'Restaurant name', addr: 'Address',
+    descAr: 'About (Arabic)', descEn: 'About (English)', webAddress: 'Public page', saved: 'Saved.', subStatus: 'Subscription status',
+    st_active: 'Active', st_past_due: 'Awaiting payment', st_canceled: 'Canceled', periodStart: 'Period started', periodEnd: 'Renews on',
+    testSub: 'Test subscription', noSub: 'No subscription on file.',
+    suspendedNote: 'Tablia Systems has suspended this restaurant, so its public page is offline. Please contact Tablia Systems support.',
   },
   ar: {
     lang: 'English', menu: 'المنيو', events: 'الفعاليات', customers: 'العملاء', orders: 'الطلبات', reservations: 'الحجوزات',
@@ -54,6 +59,11 @@ const T = {
     tier_starter: 'Starter (3,999 جنيه)', tier_growth: 'Growth (6,999 جنيه)', tier_enterprise: 'Enterprise (10,000 جنيه)',
     mod_live_orders_feed: 'الطلبات لحظة بلحظة', mod_table_reservations: 'حجز الترابيزات', mod_event_ticketing: 'تذاكر الفعاليات',
     mod_historical_reporting: 'التقارير التاريخية', mod_multi_brand_menus: 'منيوهات لأكتر من براند', mod_advanced_tagging: 'تصنيف العملاء المتقدم',
+    profile: 'الملف', subscription: 'الاشتراك', ownerName: 'اسمك', restaurantName: 'اسم المطعم', addr: 'العنوان',
+    descAr: 'نبذة بالعربي', descEn: 'نبذة بالإنجليزي', webAddress: 'صفحة المطعم', saved: 'اتحفظ.', subStatus: 'حالة الاشتراك',
+    st_active: 'فعّال', st_past_due: 'مستني الدفع', st_canceled: 'ملغي', periodStart: 'بداية الفترة', periodEnd: 'التجديد في',
+    testSub: 'اشتراك تجريبي', noSub: 'مفيش اشتراك مسجّل.',
+    suspendedNote: 'Tablia Systems أوقفت المطعم ده مؤقتًا، وصفحته العامة مقفولة. تواصل مع دعم Tablia Systems.',
   },
 } as const;
 type Dict = { [K in keyof typeof T.en]: string };
@@ -215,7 +225,7 @@ interface OEvent { id: string; title_ar: string | null; title_en: string | null;
 interface OCustomer { id: string; full_name: string | null; email: string; phone: string | null; orders_count: number; reservations_count: number; total_ordered_piasters: number }
 interface OOrder { id: string; created_at: string; status: string; transaction_type: TxType; payment_method: PayMethod; payment_status: string; total_piasters: number; crm_customers: { email: string; full_name: string | null } | null }
 interface OReservation { id: string; reserved_for: string; party_size: number; status: string; crm_customers: { email: string; full_name: string | null } | null }
-type Tab = 'menu' | 'events' | 'customers' | 'orders';
+type Tab = 'menu' | 'events' | 'customers' | 'orders' | 'profile' | 'subscription';
 const ORDER_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled'];
 const BOOKING_STATUSES = ['pending', 'confirmed', 'seated', 'completed', 'cancelled', 'no_show'];
 
@@ -249,18 +259,21 @@ export function OwnerConsole() {
   return (
     <main className="mx-auto max-w-3xl space-y-4 p-4">
       <nav className="flex flex-wrap items-center gap-2">
-        {(['orders', 'menu', 'events', 'customers'] as const).map((k) => (
+        {(['orders', 'menu', 'events', 'customers', 'profile', 'subscription'] as const).map((k) => (
           <Button key={k} variant={tab === k ? 'primary' : 'ghost'} onClick={() => setTab(k)}>{t[k]}</Button>
         ))}
         <span className="flex-1" />
         <Button variant="ghost" onClick={toggle}>{t.lang}</Button>
         <Button variant="ghost" onClick={() => supabase.auth.signOut()}>{t.signOut}</Button>
       </nav>
-      {plan && <PlanPanel plan={plan} t={t} />}
+      <SuspendedNotice t={t} />
+      {plan && tab !== 'subscription' && <PlanPanel plan={plan} t={t} />}
       {tab === 'menu' && <OwnerMenu org={org} lang={lang} t={t} />}
       {tab === 'events' && (plan && !plan.event_ticketing ? <Locked t={t} module="event_ticketing" /> : <OwnerEvents org={org} lang={lang} t={t} />)}
       {tab === 'customers' && <OwnerCustomers lang={lang} t={t} />}
       {tab === 'orders' && <OwnerOrders lang={lang} t={t} />}
+      {tab === 'profile' && <OwnerProfile t={t} />}
+      {tab === 'subscription' && <OwnerSubscription lang={lang} t={t} plan={plan} />}
     </main>
   );
 }
@@ -460,6 +473,89 @@ function PlanPanel({ plan, t }: { plan: Plan; t: Dict }) {
         </span>
       </Card>
       {MODULES.filter((m) => !plan[m]).map((m) => <Locked key={m} t={t} module={m} />)}
+    </section>
+  );
+}
+
+// ---- profile and subscription status (get_my_restaurant / update_my_restaurant) ----
+interface MyRestaurant {
+  name: string; slug: string | null; phone: string | null; address: string | null; description_ar: string | null; description_en: string | null;
+  is_active: boolean; full_name: string | null; role: string;
+  subscription: { tier: Tier; status: 'active' | 'past_due' | 'canceled'; is_test: boolean; current_period_start: string | null; current_period_end: string | null; paid: boolean } | null;
+}
+
+function useMyRestaurant() {
+  const [r, setR] = useState<MyRestaurant | null>(null);
+  const reload = useCallback(() => {
+    supabase.rpc('get_my_restaurant').then(({ data }) => setR((data as MyRestaurant | null) ?? null));
+  }, []);
+  useEffect(reload, [reload]);
+  return { r, reload };
+}
+
+function SuspendedNotice({ t }: { t: Dict }) {
+  const { r } = useMyRestaurant();
+  return r && !r.is_active ? <Card className="border-red-300 bg-red-50 p-3 text-sm text-red-800">{t.suspendedNote}</Card> : null;
+}
+
+function OwnerProfile({ t }: { t: Dict }) {
+  const { r, reload } = useMyRestaurant();
+  const [f, setF] = useState({ name: '', ownerName: '', phone: '', addr: '', descAr: '', descEn: '' });
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
+    if (r) setF({ name: r.name, ownerName: r.full_name ?? '', phone: r.phone ?? '', addr: r.address ?? '', descAr: r.description_ar ?? '', descEn: r.description_en ?? '' });
+  }, [r]);
+  if (!r) return <p>{t.loading}</p>;
+  const save = async () => {
+    const { error } = await supabase.rpc('update_my_restaurant', {
+      p_name: f.name, p_phone: f.phone, p_address: f.addr, p_description_ar: f.descAr, p_description_en: f.descEn, p_full_name: f.ownerName,
+    });
+    setMsg(error ? t.error + ' ' + error.message : t.saved);
+    if (!error) reload();
+  };
+  const field = (k: 'name' | 'ownerName' | 'phone' | 'addr', label: string, ltr = false) => (
+    <Field label={label}><Input dir={ltr ? 'ltr' : undefined} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></Field>
+  );
+  return (
+    <Card className="space-y-3 p-4">
+      <h2 className="font-semibold">{t.profile}</h2>
+      {field('name', t.restaurantName)}
+      {field('ownerName', t.ownerName)}
+      {field('phone', t.phone, true)}
+      {field('addr', t.addr)}
+      <Field label={t.descAr}><Textarea dir="rtl" value={f.descAr} onChange={(e) => setF({ ...f, descAr: e.target.value })} /></Field>
+      <Field label={t.descEn}><Textarea dir="ltr" value={f.descEn} onChange={(e) => setF({ ...f, descEn: e.target.value })} /></Field>
+      {r.slug && (
+        <p className="text-sm">{t.webAddress}: <a className="underline" dir="ltr" href={'/t/' + r.slug} target="_blank" rel="noreferrer">{window.location.origin}/t/{r.slug}</a></p>
+      )}
+      <Button onClick={save}>{t.save}</Button>
+      {msg && <p className="text-sm">{msg}</p>}
+    </Card>
+  );
+}
+
+function OwnerSubscription({ lang, t, plan }: PageProps & { plan: Plan | null }) {
+  const { r } = useMyRestaurant();
+  if (!r) return <p>{t.loading}</p>;
+  const s = r.subscription;
+  const d = (x: string | null) => (x ? new Date(x).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB') : '-');
+  return (
+    <section className="space-y-2">
+      <Card className="space-y-2 p-4 text-sm">
+        <h2 className="font-semibold">{t.subStatus}</h2>
+        {s ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <strong>{tierLabel(t, s.tier)}</strong>
+              <Badge tone={s.paid ? 'green' : 'amber'}>{t[`st_${s.status}` as const]}</Badge>
+              {s.is_test && <Badge>{t.testSub}</Badge>}
+            </div>
+            <div>{t.periodStart}: {d(s.current_period_start)}</div>
+            <div>{t.periodEnd}: {d(s.current_period_end)}</div>
+          </>
+        ) : <p>{t.noSub}</p>}
+      </Card>
+      {plan && <PlanPanel plan={plan} t={t} />}
     </section>
   );
 }
