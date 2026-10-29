@@ -8,6 +8,14 @@ export const HMAC_FIELDS = [
 
 export type Obj = Record<string, unknown>;
 
+// The three plans by the amount Paymob reports, in piasters (public.plan_limits.price_amount_cents holds the same prices).
+export type Tier = 'starter' | 'growth' | 'enterprise';
+export const TIER_BY_AMOUNT_CENTS: Readonly<Record<number, Tier>> = { 399900: 'starter', 699900: 'growth', 1000000: 'enterprise' };
+
+export function tierForAmount(amountCents: number): Tier | null {
+  return Object.hasOwn(TIER_BY_AMOUNT_CENTS, amountCents) ? TIER_BY_AMOUNT_CENTS[amountCents] : null;
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function pick(obj: Obj, path: string): unknown {

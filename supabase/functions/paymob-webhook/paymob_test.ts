@@ -1,6 +1,6 @@
 // deno test supabase/functions/paymob-webhook/paymob_test.ts
 import { assert, assertEquals, assertFalse } from '@std/assert';
-import { hmacHex, hmacMessage, isSuccessfulPayment, organizationIdOf, verifyHmac } from './paymob.ts';
+import { hmacHex, hmacMessage, isSuccessfulPayment, organizationIdOf, tierForAmount, verifyHmac } from './paymob.ts';
 
 const secret = 'test-only-secret';
 const tx = () => ({
@@ -56,4 +56,12 @@ Deno.test('organization id comes from merchant_order_id or the payment key extra
     payment_key_claims: { extra: { organization_id: '00000000-0000-4000-e000-000000000001' } } };
   assertEquals(organizationIdOf(viaExtra), '00000000-0000-4000-e000-000000000001');
   assertEquals(organizationIdOf({ ...tx(), order: { id: 1, merchant_order_id: 'not-a-uuid' } }), null);
+});
+
+Deno.test('amounts map to the three plans', () => {
+  assertEquals(tierForAmount(399900), 'starter');
+  assertEquals(tierForAmount(699900), 'growth');
+  assertEquals(tierForAmount(1000000), 'enterprise');
+  assertEquals(tierForAmount(980000), null);
+  assertEquals(tierForAmount(499900), null);
 });

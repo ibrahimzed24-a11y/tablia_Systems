@@ -2,10 +2,11 @@
 // 1. Verifies Paymob's HMAC with the function secret PAYMOB_HMAC_SECRET (supabase secrets set ..., never in the repo).
 // 2. Accepts only successful payments; anything else is acknowledged and ignored.
 // 3. Calls public.apply_paymob_payment with the service role key (injected by Supabase, server side only).
-//    That function maps the amount to a plan (980000 piasters = 9,800 EGP = scale_matrix, 499900 = 4,999 EGP = growth),
+//    That function maps the amount to a plan (399900 piasters = 3,999 EGP = starter, 699900 = 6,999 EGP = growth,
+//    1000000 = 10,000 EGP = enterprise),
 //    ignores any other amount or currency, and is idempotent on the Paymob transaction id, so retries are harmless.
 import { createClient } from '@supabase/supabase-js';
-import { isSuccessfulPayment, type Obj, organizationIdOf, verifyHmac } from './paymob.ts';
+import { isSuccessfulPayment, type Obj, organizationIdOf, tierForAmount, verifyHmac } from './paymob.ts';
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -56,6 +57,8 @@ Deno.serve(async (req) => {
     console.error('apply_paymob_payment failed', error.code, error.message);
     return json({ error: 'db_error' }, 500);
   }
+  const tier = tierForAmount(amountCents);
   if (data !== 'applied' && data !== 'duplicate') console.warn('paymob payment ignored', transactionId, data);
-  return json({ ok: true, outcome: data }, 200);
+  if (data === 'applied' && !tier) console.error('plan prices differ between plan_limits and paymob.ts', amountCents);
+  return json({ ok: true, outcome: data, tier }, 200);
 });

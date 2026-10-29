@@ -23,6 +23,10 @@ select ok(not has_table_privilege('anon', 'public.crm_customers', 'SELECT'), 'an
 insert into public.organizations (id, name, slug) values
   ('00000000-0000-4000-f000-000000000001', 'Test tenant one', 'test-one'),
   ('00000000-0000-4000-f000-000000000002', 'Test tenant two', 'test-two');
+-- Both test tenants are on Enterprise so dine-in, reservations and event tickets are open (plans: tenant_subscriptions.sql).
+insert into public.subscriptions (organization_id, tier, status) values
+  ('00000000-0000-4000-f000-000000000001', 'enterprise', 'active'),
+  ('00000000-0000-4000-f000-000000000002', 'enterprise', 'active');
 insert into public.menu_sections (id, slug, name_ar, organization_id) values
   ('00000000-0000-4000-f100-000000000001', 'test-one-food', 'أكل', '00000000-0000-4000-f000-000000000001'),
   ('00000000-0000-4000-f100-000000000002', 'test-two-food', 'أكل', '00000000-0000-4000-f000-000000000002');

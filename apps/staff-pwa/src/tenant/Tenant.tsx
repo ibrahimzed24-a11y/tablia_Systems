@@ -34,7 +34,10 @@ const T = {
     signOut: 'Sign out', noOrg: 'This account is not linked to a restaurant yet.', save: 'Save', available: 'Available', price: 'Price (EGP)',
     nameAr: 'Arabic name', nameEn: 'English name', section: 'Section', newEvent: 'New event', titleAr: 'Arabic title', titleEn: 'English title',
     starts: 'Starts', capacity: 'Capacity', published: 'Published', status: 'Status', paid: 'Mark paid', ordersCount: 'Orders', spent: 'Ordered',
-    error: 'Something went wrong:',
+    error: 'Something went wrong:', plan: 'Plan', locked: 'Locked', upgradeNote: 'Not in your plan. Upgrade to', domains: 'Domains', seats: 'Seats', fee: 'Online fee',
+    tier_starter: 'Starter (3,999 EGP)', tier_growth: 'Growth (6,999 EGP)', tier_enterprise: 'Enterprise (10,000 EGP)',
+    mod_live_orders_feed: 'Live orders feed', mod_table_reservations: 'Table reservations', mod_event_ticketing: 'Live event ticketing',
+    mod_historical_reporting: 'Historical reports', mod_multi_brand_menus: 'Multi-brand menus', mod_advanced_tagging: 'Advanced guest tagging',
   },
   ar: {
     lang: 'English', menu: 'المنيو', events: 'الفعاليات', customers: 'العملاء', orders: 'الطلبات', reservations: 'الحجوزات',
@@ -46,7 +49,10 @@ const T = {
     signOut: 'خروج', noOrg: 'الحساب ده مش مربوط بمطعم لسه.', save: 'حفظ', available: 'متاح', price: 'السعر (جنيه)',
     nameAr: 'الاسم بالعربي', nameEn: 'الاسم بالإنجليزي', section: 'القسم', newEvent: 'فعالية جديدة', titleAr: 'العنوان بالعربي', titleEn: 'العنوان بالإنجليزي',
     starts: 'تبدأ', capacity: 'العدد', published: 'منشورة', status: 'الحالة', paid: 'اتدفع', ordersCount: 'الطلبات', spent: 'إجمالي الطلبات',
-    error: 'حصلت مشكلة:',
+    error: 'حصلت مشكلة:', plan: 'الباقة', locked: 'مقفول', upgradeNote: 'مش ضمن باقتك. اترقى إلى', domains: 'الدومينات', seats: 'المديرين', fee: 'رسوم الأونلاين',
+    tier_starter: 'Starter (3,999 جنيه)', tier_growth: 'Growth (6,999 جنيه)', tier_enterprise: 'Enterprise (10,000 جنيه)',
+    mod_live_orders_feed: 'الطلبات لحظة بلحظة', mod_table_reservations: 'حجز الترابيزات', mod_event_ticketing: 'تذاكر الفعاليات',
+    mod_historical_reporting: 'التقارير التاريخية', mod_multi_brand_menus: 'منيوهات لأكتر من براند', mod_advanced_tagging: 'تصنيف العملاء المتقدم',
   },
 } as const;
 type Dict = { [K in keyof typeof T.en]: string };
@@ -219,6 +225,7 @@ export function OwnerConsole() {
   const [tab, setTab] = useState<Tab>('orders');
   const [cred, setCred] = useState({ email: '', password: '' });
   const [err, setErr] = useState('');
+  const [plan, setPlan] = useState<Plan | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -229,6 +236,10 @@ export function OwnerConsole() {
     if (!session) { setOrg(undefined); return; }
     supabase.rpc('get_auth_organization').then(({ data }) => setOrg((data as string | null) ?? null));
   }, [session]);
+  useEffect(() => {
+    if (!org) { setPlan(null); return; }
+    supabase.rpc('get_my_plan').then(({ data }) => setPlan((data as Plan | null) ?? null));
+  }, [org]);
 
   if (!session) {
     return (
@@ -253,8 +264,9 @@ export function OwnerConsole() {
         <Button variant="ghost" onClick={toggle}>{t.lang}</Button>
         <Button variant="ghost" onClick={() => supabase.auth.signOut()}>{t.signOut}</Button>
       </nav>
+      {plan && <PlanPanel plan={plan} t={t} />}
       {tab === 'menu' && <OwnerMenu org={org} lang={lang} t={t} />}
-      {tab === 'events' && <OwnerEvents org={org} lang={lang} t={t} />}
+      {tab === 'events' && (plan && !plan.event_ticketing ? <Locked t={t} module="event_ticketing" /> : <OwnerEvents org={org} lang={lang} t={t} />)}
       {tab === 'customers' && <OwnerCustomers lang={lang} t={t} />}
       {tab === 'orders' && <OwnerOrders lang={lang} t={t} />}
     </main>
@@ -410,6 +422,52 @@ function OwnerOrders({ lang, t }: PageProps) {
           </Select>
         </Card>
       ))}
+    </section>
+  );
+}
+
+// ---- plan: the database enforces every limit; these pages only show what is locked ----
+type Tier = 'starter' | 'growth' | 'enterprise';
+const MODULES = ['live_orders_feed', 'table_reservations', 'event_ticketing', 'historical_reporting', 'multi_brand_menus', 'advanced_tagging'] as const;
+type Module = (typeof MODULES)[number];
+const UNLOCKED_BY: Record<Module, Tier> = {
+  live_orders_feed: 'growth', table_reservations: 'growth', event_ticketing: 'enterprise',
+  historical_reporting: 'enterprise', multi_brand_menus: 'enterprise', advanced_tagging: 'enterprise',
+};
+interface Plan extends Record<Module, boolean> {
+  tier: Tier;
+  online_fee_bps: number;
+  max_menu_items: number | null;
+  max_guest_profiles: number | null;
+  max_custom_domains: number;
+  max_manager_seats: number;
+  usage: { menu_items: number; guest_profiles: number; custom_domains: number; manager_seats: number };
+}
+const tierLabel = (t: Dict, tier: Tier) => t[`tier_${tier}` as const];
+
+function Locked({ t, module }: { t: Dict; module: Module }) {
+  return (
+    <Card className="space-y-1 p-3 text-sm">
+      <div className="flex items-center gap-2"><Badge>🔒 {t.locked}</Badge><strong>{t[`mod_${module}` as const]}</strong></div>
+      <p>{t.upgradeNote} {tierLabel(t, UNLOCKED_BY[module])}</p>
+    </Card>
+  );
+}
+
+function PlanPanel({ plan, t }: { plan: Plan; t: Dict }) {
+  const cap = (n: number | null) => (n === null ? '∞' : String(n));
+  return (
+    <section className="space-y-2">
+      <Card className="flex flex-wrap items-center gap-2 p-2 text-sm">
+        <strong>{t.plan}: {tierLabel(t, plan.tier)}</strong>
+        <span className="flex-1" />
+        <span>
+          {t.menu} {plan.usage.menu_items}/{cap(plan.max_menu_items)} · {t.customers} {plan.usage.guest_profiles}/{cap(plan.max_guest_profiles)} ·{' '}
+          {t.domains} {plan.usage.custom_domains}/{plan.max_custom_domains} · {t.seats} {plan.usage.manager_seats}/{plan.max_manager_seats} ·{' '}
+          {t.fee} {plan.online_fee_bps / 100}%
+        </span>
+      </Card>
+      {MODULES.filter((m) => !plan[m]).map((m) => <Locked key={m} t={t} module={m} />)}
     </section>
   );
 }
