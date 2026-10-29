@@ -38,8 +38,8 @@ and replies, SOPs and tasks, staff devices and QR tokens, hourly branch metrics.
 ## 2. Paymob
 
 1. A Paymob merchant account for Egypt with card payments enabled.
-2. Supabase > Edge Functions > Secrets: set the Paymob values listed in `.env.example` (API key, integration id,
-   iframe id, HMAC secret). Never in Vercel and never with a `VITE_` name.
+2. Supabase > Edge Functions > Secrets: set `PAYMOB_SECRET_KEY`, `PAYMOB_PUBLIC_KEY`, `PAYMOB_INTEGRATION_ID`,
+   `PAYMOB_HMAC_SECRET` and `PAYMOB_REDIRECT_URL` (listed in `.env.example`). Never in Vercel and never with a `VITE_` name.
 3. Paymob dashboard: the transaction processed callback URL is
    `https://<project-ref>.supabase.co/functions/v1/paymob-webhook`.
 4. One real test payment per plan (Starter, Growth, Enterprise), then check in `/admin` that the plan shows as paid.
