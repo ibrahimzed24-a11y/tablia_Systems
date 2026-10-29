@@ -2,6 +2,7 @@
 -- place_order prices on the server and upserts the CRM customer, create_reservation respects event capacity,
 -- and a tenant user sees only their own organization. Everything is rolled back.
 begin;
+set local role postgres; -- `supabase test db --linked` logs in as a non-inheriting role that cannot see the extensions schema
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 set search_path = extensions, public;
@@ -71,7 +72,7 @@ select throws_ok($$select public.create_reservation('test-one', '{"email":"b@exa
                  'P0001', 'event_full', 'event capacity is enforced');
 select ok((public.get_public_storefront('test-one') -> 'sections') is not null, 'the storefront is readable by anon');
 
-reset role;
+set local role postgres;
 
 -- ---- CRM upsert ----
 select is((select count(*)::int from public.crm_customers where organization_id = '00000000-0000-4000-f000-000000000001' and email = 'guest@example.com'),
@@ -95,7 +96,7 @@ select throws_ok($$insert into public.restaurant_events (organization_id, title_
                  '42501', null, 'tenant two cannot write into tenant one');
 select lives_ok($$insert into public.restaurant_events (organization_id, title_en, starts_at) values ('00000000-0000-4000-f000-000000000002', 'Own event', now() + interval '1 day')$$,
                 'tenant two writes its own events');
-reset role;
+set local role postgres;
 
 select * from finish();
 rollback;
