@@ -1,4 +1,4 @@
-project_id = "mela-rossa-admin"
+project_id = "tablia-systems"
 
 [api]
 enabled = true
@@ -12,33 +12,48 @@ port = 54322
 major_version = 15
 
 [db.seed]
-enabled = false  # the menu seed is a migration, so `supabase db push` seeds production too
+enabled = false
 
 [auth]
 enabled = true
+# Production values go in the Supabase dashboard (Authentication > URL Configuration), see docs/NEEDS-YOUR-ACCESS.md.
 site_url = "http://localhost:5173"
-additional_redirect_urls = ["http://localhost:5173"]
+additional_redirect_urls = ["http://localhost:5173", "http://localhost:5173/owner", "http://localhost:5173/admin"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
-enable_signup = false  # staff only join through the QR code (docs/sops/05)
+# Owners create their own account at /owner; staff sign up there with the email their owner invited.
+enable_signup = true
 
 [auth.email]
-enable_signup = false
+enable_signup = true
+# An account works only after the 6-digit code or the link from the email.
+enable_confirmations = true
+double_confirm_changes = true
+otp_length = 6
+otp_expiry = 3600
+
+[auth.email.template.confirmation]
+subject = "Confirm your Tablia Systems account"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Choose a new Tablia Systems password"
+content_path = "./supabase/templates/recovery.html"
+
+# /admin requires an authenticator-app code; the database refuses admin data to password-only (aal1) sessions.
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
 
 [edge_runtime]
 enabled = true
 
-[functions.verify-provision-qr]
-verify_jwt = false  # the function checks the caller itself: issue needs a staff JWT, redeem needs the QR token
-import_map = "./functions/verify-provision-qr/deno.json"
-
-[functions.export-branch-analytics]
-verify_jwt = false  # the function verifies the caller's JWT itself (Supabase Auth) and answers the CORS preflight
-import_map = "./functions/export-branch-analytics/deno.json"
-
-[functions.provision-domain]
-verify_jwt = false  # the function checks the caller's JWT and admin role itself and answers the CORS preflight
-import_map = "./functions/provision-domain/deno.json"
+[functions.paymob-checkout]
+verify_jwt = true  # only a signed-in owner starts a payment
+import_map = "./functions/paymob-checkout/deno.json"
 
 [functions.paymob-webhook]
 verify_jwt = false  # Paymob calls without a Supabase JWT; the function verifies Paymob's HMAC itself

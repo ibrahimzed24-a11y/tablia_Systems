@@ -1,13 +1,22 @@
-name: CI and deploy staff PWA
+name: CI and deploy
 
+# Every push and pull request runs lint, typecheck and build, plus the database and function tests.
+# Deploys never run on push: start them by hand (Actions > CI and deploy > Run workflow) and pick what to deploy,
+# after the backup in docs/NEEDS-YOUR-ACCESS.md. Migration 20261029001000 deletes the old pilot data.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'What to deploy after CI passes'
+        type: choice
+        options: [none, web, supabase, all]
+        default: none
 
 concurrency:
-  group: deploy-pwa-${{ github.ref }}
+  group: ci-deploy-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -33,14 +42,40 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
+  # pgTAP suites in supabase/tests against a throwaway local database. Not blocking yet: make it blocking
+  # (remove continue-on-error) after its first green run.
+  db-tests:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase db start
+      - run: supabase test db
+
+  # Deno unit tests of the edge functions. Not blocking yet, same as db-tests.
+  function-tests:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/paymob-checkout/index.ts supabase/functions/paymob-webhook/index.ts
+      - run: deno test --allow-env --config supabase/functions/paymob-webhook/deno.json supabase/functions/paymob-webhook/
+
   deploy-vercel:
     needs: ci
+    if: github.event_name == 'workflow_dispatch' && (inputs.deploy == 'web' || inputs.deploy == 'all')
     runs-on: ubuntu-latest
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      TARGET: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'production' || 'preview' }}
+      TARGET: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,9 +93,10 @@ jobs:
       - if: env.VERCEL_TOKEN != '' && env.TARGET == 'preview'
         run: vercel build --token="$VERCEL_TOKEN" && vercel deploy --prebuilt --token="$VERCEL_TOKEN"
 
+  # Applies the migrations and deploys the Paymob functions. Run it only after the backup.
   deploy-supabase:
     needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.deploy == 'supabase' || inputs.deploy == 'all')
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -77,3 +113,5 @@ jobs:
         run: |
           supabase link --project-ref "$SUPABASE_PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
           supabase db push --include-all -p "$SUPABASE_DB_PASSWORD"
+          supabase functions deploy paymob-checkout --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy paymob-webhook --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt

@@ -1,0 +1,13 @@
+<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">
+  <h2>Confirm your Tablia Systems account</h2>
+  <p>Your confirmation code is:</p>
+  <p style="font-size:30px;font-weight:bold;letter-spacing:8px">{{ .Token }}</p>
+  <p>Type it on the sign-up screen, or open this link to confirm your account and sign in:</p>
+  <p><a href="{{ .ConfirmationURL }}">Confirm my account</a></p>
+  <hr>
+  <div dir="rtl">
+    <p>كود تأكيد حسابك في Tablia Systems هو: <b>{{ .Token }}</b></p>
+    <p>اكتبه في شاشة التسجيل، أو افتح <a href="{{ .ConfirmationURL }}">اللينك ده</a> لتأكيد الحساب والدخول.</p>
+  </div>
+  <p style="color:#777;font-size:12px">If you did not create a Tablia Systems account, ignore this email. / لو ما عملتش حساب، تجاهل الرسالة دي.</p>
+</div>

@@ -26,7 +26,7 @@ select is(public.get_my_restaurant() ->> 'name', 'Super Test Grill 2', 'the prof
 select is(public.get_my_restaurant() -> 'subscription' ->> 'status', 'past_due', 'the owner sees the subscription status');
 
 -- the super admin
-select set_config('request.jwt.claims', '{"sub":"b0000000-0000-4000-8000-0000000000b1","role":"authenticated"}', true);
+select set_config('request.jwt.claims', '{"sub":"b0000000-0000-4000-8000-0000000000b1","role":"authenticated","aal":"aal2"}', true);
 select is(public.am_i_super_admin(), true, 'the super admin is recognised');
 select ok(public.admin_list_restaurants() @> '[{"slug":"pgtap-super-grill","owner_email":"owner@test.tablia","tier":"growth"}]',
   'the super admin sees every restaurant with its owner and plan');

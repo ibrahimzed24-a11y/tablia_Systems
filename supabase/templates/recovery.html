@@ -1,0 +1,12 @@
+<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">
+  <h2>Choose a new Tablia Systems password</h2>
+  <p>Open this link to choose a new password:</p>
+  <p><a href="{{ .ConfirmationURL }}">Choose a new password</a></p>
+  <p>Your code is <b>{{ .Token }}</b>. The link and the code work once and expire in one hour.</p>
+  <hr>
+  <div dir="rtl">
+    <p>افتح <a href="{{ .ConfirmationURL }}">اللينك ده</a> عشان تختار كلمة سر جديدة لحسابك في Tablia Systems.</p>
+    <p>الكود: <b>{{ .Token }}</b>. اللينك والكود يشتغلوا مرة واحدة ولمدة ساعة.</p>
+  </div>
+  <p style="color:#777;font-size:12px">If you did not ask for this, ignore this email; your password stays the same.</p>
+</div>
