@@ -59,12 +59,16 @@ jobs:
   function-tests:
     runs-on: ubuntu-latest
     continue-on-error: true
+    env:
+      # The root package.json is the npm workspace for the web app; the functions use their own deno.json.
+      DENO_NO_PACKAGE_JSON: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: deno check supabase/functions/paymob-checkout/index.ts supabase/functions/paymob-webhook/index.ts
+      - run: deno check --config supabase/functions/paymob-checkout/deno.json supabase/functions/paymob-checkout/index.ts
+      - run: deno check --config supabase/functions/paymob-webhook/deno.json supabase/functions/paymob-webhook/index.ts
       - run: deno test --allow-env --config supabase/functions/paymob-webhook/deno.json supabase/functions/paymob-webhook/
 
   deploy-vercel:
