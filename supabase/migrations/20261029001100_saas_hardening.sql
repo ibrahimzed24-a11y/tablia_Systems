@@ -40,7 +40,7 @@ revoke all on function app.require_active_restaurant() from public, anon;
 create or replace function public.update_my_restaurant(
   p_name text, p_phone text, p_address text, p_description_ar text, p_description_en text, p_full_name text
 ) returns void
-language plpgsql security definer set search_path = '' as $
+language plpgsql security definer set search_path = '' as $$
 declare v_org uuid := public.get_auth_organization();
 begin
   perform app.require_active_restaurant();
@@ -55,10 +55,10 @@ begin
     description_en = nullif(btrim(coalesce(p_description_en, '')), '')
    where o.id = v_org;
   update public.user_profiles p set full_name = nullif(btrim(coalesce(p_full_name, '')), '') where p.id = auth.uid();
-end $;
+end $$;
 
 create or replace function public.choose_my_plan(p_tier public.subscription_tier) returns void
-language plpgsql security definer set search_path = '' as $
+language plpgsql security definer set search_path = '' as $$
 declare v_org uuid := public.get_auth_organization();
 begin
   perform app.require_active_restaurant();
@@ -69,11 +69,11 @@ begin
    where s.organization_id = v_org
      and not (s.status = 'active' and (s.current_period_end is null or s.current_period_end > now()));
   if not found then raise exception 'the current plan is paid and running' using errcode = 'P0001'; end if;
-end $;
+end $$;
 
 create or replace function public.create_my_organization(p_name text, p_slug text, p_tier public.subscription_tier)
 returns uuid
-language plpgsql security definer set search_path = '' as $
+language plpgsql security definer set search_path = '' as $$
 declare
   v_uid uuid := auth.uid();
   v_org uuid;
@@ -88,55 +88,7 @@ begin
     raise exception 'this account already has a restaurant' using errcode = 'P0001';
   end if;
   if char_length(v_name) not between 1 and 120 then raise exception 'restaurant name is required' using errcode = '22023'; end if;
-  if v_slug !~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?
-
--- 4) Manual plan changes by an admin. activate: a paid plan for p_days; comp: the same but marked as a test
--- (left out of revenue); extend: adds p_days to the current period; cancel: ends the plan now.
-create or replace function public.admin_set_subscription(
-  p_org uuid, p_action text, p_tier public.subscription_tier default null, p_days int default 30)
-returns void
-language plpgsql security definer set search_path = '' as $$
-declare v_days int := coalesce(p_days, 30);
-begin
-  perform app.require_super_admin();
-  if not exists (select 1 from public.organizations o where o.id = p_org) then
-    raise exception 'restaurant not found' using errcode = 'P0002';
-  end if;
-  if p_action is null or p_action not in ('activate', 'extend', 'comp', 'cancel') then
-    raise exception 'unknown action' using errcode = '22023';
-  end if;
-  if v_days not between 1 and 366 then raise exception 'days must be between 1 and 366' using errcode = '22023'; end if;
-
-  if p_action in ('activate', 'comp') then
-    insert into public.subscriptions (organization_id, tier, status, billing_provider, current_period_start, current_period_end, is_test)
-    values (p_org, coalesce(p_tier, 'starter'), 'active', 'manual', now(), now() + make_interval(days => v_days), p_action = 'comp')
-    on conflict (organization_id) do update set
-      tier = coalesce(p_tier, public.subscriptions.tier), status = 'active', billing_provider = 'manual',
-      current_period_start = now(), current_period_end = now() + make_interval(days => v_days),
-      is_test = (p_action = 'comp'), updated_at = now();
-  elsif p_action = 'extend' then
-    update public.subscriptions s set
-      current_period_start = coalesce(s.current_period_start, now()),
-      current_period_end = greatest(coalesce(s.current_period_end, now()), now()) + make_interval(days => v_days),
-      status = 'active', updated_at = now()
-     where s.organization_id = p_org;
-    if not found then raise exception 'this restaurant has no plan to extend' using errcode = 'P0002'; end if;
-  else
-    update public.subscriptions s set
-      status = 'canceled',
-      current_period_end = case when s.current_period_start is not null and s.current_period_start >= now()
-                                then s.current_period_start + interval '1 second' else now() end,
-      updated_at = now()
-     where s.organization_id = p_org;
-    if not found then raise exception 'this restaurant has no plan to cancel' using errcode = 'P0002'; end if;
-  end if;
-
-  insert into public.audit_log (actor, action, entity, entity_id)
-  values (auth.uid(), 'subscription_' || p_action, 'subscriptions', p_org::text);
-end $$;
-revoke all on function public.admin_set_subscription(uuid, text, public.subscription_tier, int) from public, anon;
-grant execute on function public.admin_set_subscription(uuid, text, public.subscription_tier, int) to authenticated;
- or v_slug in ('www', 'app', 'admin', 'api', 'owner', 'staff') then
+  if v_slug !~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$' or v_slug in ('www', 'app', 'admin', 'api', 'owner', 'staff') then
     raise exception 'invalid web address' using errcode = '22023';
   end if;
   if p_tier is null then raise exception 'choose a plan' using errcode = '22023'; end if;
@@ -148,7 +100,7 @@ grant execute on function public.admin_set_subscription(uuid, text, public.subsc
   on conflict (id) do update set organization_id = excluded.organization_id, role = 'tenant_admin';
   insert into public.subscriptions (organization_id, tier, status) values (v_org, p_tier, 'past_due');
   return v_org;
-end $;
+end $$;
 
 -- 4) Manual plan changes by an admin. activate: a paid plan for p_days; comp: the same but marked as a test
 -- (left out of revenue); extend: adds p_days to the current period; cancel: ends the plan now.
