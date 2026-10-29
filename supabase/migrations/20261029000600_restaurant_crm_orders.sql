@@ -115,7 +115,7 @@ create table if not exists public.orders (
   updated_at timestamptz not null default now(),
   constraint orders_customer_fk foreign key (customer_id, organization_id)
     references public.crm_customers (id, organization_id) on delete restrict,
-  constraint orders_delivery_address_check check (transaction_type <> 'delivery' or delivery_address is not null)
+  constraint orders_delivery_needs_address check (transaction_type <> 'delivery' or delivery_address is not null)
 );
 create index if not exists orders_org_created_idx on public.orders (organization_id, created_at desc);
 create index if not exists orders_customer_idx on public.orders (customer_id);
