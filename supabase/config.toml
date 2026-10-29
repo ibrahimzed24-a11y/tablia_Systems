@@ -39,3 +39,7 @@ import_map = "./functions/export-branch-analytics/deno.json"
 [functions.provision-domain]
 verify_jwt = false  # the function checks the caller's JWT and admin role itself and answers the CORS preflight
 import_map = "./functions/provision-domain/deno.json"
+
+[functions.paymob-webhook]
+verify_jwt = false  # Paymob calls without a Supabase JWT; the function verifies Paymob's HMAC itself
+import_map = "./functions/paymob-webhook/deno.json"
