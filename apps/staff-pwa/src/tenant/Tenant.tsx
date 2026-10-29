@@ -42,7 +42,7 @@ const T = {
     profile: 'Profile', subscription: 'Subscription', ownerName: 'Your name', restaurantName: 'Restaurant name', addr: 'Address',
     descAr: 'About (Arabic)', descEn: 'About (English)', webAddress: 'Public page', saved: 'Saved.', subStatus: 'Subscription status',
     st_active: 'Active', st_past_due: 'Awaiting payment', st_canceled: 'Canceled', periodStart: 'Period started', periodEnd: 'Renews on',
-    testSub: 'Test subscription', noSub: 'No subscription on file.',
+    testSub: 'Test subscription', noSub: 'No subscription on file.', newPassword: 'Choose a new password (at least 8 characters)', setPassword: 'Save new password',
     suspendedNote: 'Tablia Systems has suspended this restaurant, so its public page is offline. Please contact Tablia Systems support.',
   },
   ar: {
@@ -62,7 +62,7 @@ const T = {
     profile: 'الملف', subscription: 'الاشتراك', ownerName: 'اسمك', restaurantName: 'اسم المطعم', addr: 'العنوان',
     descAr: 'نبذة بالعربي', descEn: 'نبذة بالإنجليزي', webAddress: 'صفحة المطعم', saved: 'اتحفظ.', subStatus: 'حالة الاشتراك',
     st_active: 'فعّال', st_past_due: 'مستني الدفع', st_canceled: 'ملغي', periodStart: 'بداية الفترة', periodEnd: 'التجديد في',
-    testSub: 'اشتراك تجريبي', noSub: 'مفيش اشتراك مسجّل.',
+    testSub: 'اشتراك تجريبي', noSub: 'مفيش اشتراك مسجّل.', newPassword: 'اختار كلمة سر جديدة (8 حروف على الأقل)', setPassword: 'احفظ كلمة السر الجديدة',
     suspendedNote: 'Tablia Systems أوقفت المطعم ده مؤقتًا، وصفحته العامة مقفولة. تواصل مع دعم Tablia Systems.',
   },
 } as const;
@@ -235,11 +235,12 @@ export function OwnerConsole() {
   const [org, setOrg] = useState<string | null | undefined>(undefined);
   const [tab, setTab] = useState<Tab>('orders');
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [recovery, setRecovery] = useState(() => window.location.hash.includes('type=recovery'));
   const due = useCheckoutDue(org);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data } = supabase.auth.onAuthStateChange((e, s) => { setSession(s); if (e === 'PASSWORD_RECOVERY') setRecovery(true); });
     return () => data.subscription.unsubscribe();
   }, []);
   useEffect(() => {
@@ -252,6 +253,7 @@ export function OwnerConsole() {
   }, [org]);
 
   if (!session) return <OwnerAuth lang={lang} toggle={toggle} />;
+  if (recovery) return <NewPassword t={t} onDone={() => setRecovery(false)} />;
   if (org === undefined) return <main className="p-6">{t.loading}</main>;
   if (org === null) return <OwnerSetup lang={lang} toggle={toggle} onDone={setOrg} />;
   if (due === undefined) return <main className="p-6">{t.loading}</main>;
@@ -557,5 +559,24 @@ function OwnerSubscription({ lang, t, plan }: PageProps & { plan: Plan | null })
       </Card>
       {plan && <PlanPanel plan={plan} t={t} />}
     </section>
+  );
+}
+
+// Reached from the password reset email: the link signs the user in for recovery, this sets the new password.
+function NewPassword({ t, onDone }: { t: Dict; onDone: () => void }) {
+  const [password, setPassword] = useState('');
+  const [msg, setMsg] = useState('');
+  const save = async () => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) { setMsg(t.error + ' ' + error.message); return; }
+    window.history.replaceState(null, '', window.location.pathname);
+    onDone();
+  };
+  return (
+    <main className="mx-auto max-w-md space-y-3 p-6">
+      <Field label={t.newPassword}><Input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+      <Button disabled={password.length < 8} onClick={save}>{t.setPassword}</Button>
+      {msg && <p className="text-sm text-red-700">{msg}</p>}
+    </main>
   );
 }
