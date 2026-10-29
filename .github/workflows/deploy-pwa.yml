@@ -77,6 +77,3 @@ jobs:
         run: |
           supabase link --project-ref "$SUPABASE_PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
           supabase db push --include-all -p "$SUPABASE_DB_PASSWORD"
-          supabase functions deploy verify-provision-qr --project-ref "$SUPABASE_PROJECT_REF"
-          supabase functions deploy export-branch-analytics --project-ref "$SUPABASE_PROJECT_REF"
-          supabase functions deploy provision-domain --project-ref "$SUPABASE_PROJECT_REF"

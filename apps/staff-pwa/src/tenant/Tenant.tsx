@@ -225,7 +225,7 @@ interface OEvent { id: string; title_ar: string | null; title_en: string | null;
 interface OCustomer { id: string; full_name: string | null; email: string; phone: string | null; orders_count: number; reservations_count: number; total_ordered_piasters: number }
 interface OOrder { id: string; created_at: string; status: string; transaction_type: TxType; payment_method: PayMethod; payment_status: string; total_piasters: number; crm_customers: { email: string; full_name: string | null } | null }
 interface OReservation { id: string; reserved_for: string; party_size: number; status: string; crm_customers: { email: string; full_name: string | null } | null }
-type Tab = 'menu' | 'events' | 'customers' | 'orders' | 'profile' | 'subscription';
+type Tab = 'menu' | 'events' | 'customers' | 'orders' | 'reservations' | 'team' | 'profile' | 'subscription';
 const ORDER_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled'];
 const BOOKING_STATUSES = ['pending', 'confirmed', 'seated', 'completed', 'cancelled', 'no_show'];
 
@@ -237,6 +237,7 @@ export function OwnerConsole() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [recovery, setRecovery] = useState(() => window.location.hash.includes('type=recovery'));
   const due = useCheckoutDue(org);
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -250,6 +251,7 @@ export function OwnerConsole() {
   useEffect(() => {
     if (!org) { setPlan(null); return; }
     supabase.rpc('get_my_plan').then(({ data }) => setPlan((data as Plan | null) ?? null));
+    supabase.rpc('get_my_restaurant').then(({ data }) => setRole((data as { role?: string } | null)?.role ?? null));
   }, [org]);
 
   if (!session) return <OwnerAuth lang={lang} toggle={toggle} />;
@@ -257,12 +259,17 @@ export function OwnerConsole() {
   if (org === undefined) return <main className="p-6">{t.loading}</main>;
   if (org === null) return <OwnerSetup lang={lang} toggle={toggle} onDone={setOrg} />;
   if (due === undefined) return <main className="p-6">{t.loading}</main>;
+  if (due && role === 'manager') {
+    return <main className="p-6">{lang === 'ar' ? 'اشتراك المطعم مش شغّال. اطلب من صاحب المطعم يجدد الاشتراك.' : "The restaurant's subscription is not active. Ask the owner to renew it."}</main>;
+  }
   if (due) return <Checkout lang={lang} toggle={toggle} tier={due} />;
   return (
     <main className="mx-auto max-w-3xl space-y-4 p-4">
       <nav className="flex flex-wrap items-center gap-2">
-        {(['orders', 'menu', 'events', 'customers', 'profile', 'subscription'] as const).map((k) => (
-          <Button key={k} variant={tab === k ? 'primary' : 'ghost'} onClick={() => setTab(k)}>{t[k]}</Button>
+        {(role === 'tenant_admin'
+          ? (['orders', 'reservations', 'menu', 'events', 'customers', 'team', 'profile', 'subscription'] as const)
+          : (['orders', 'reservations', 'menu', 'events', 'customers'] as const)).map((k) => (
+          <Button key={k} variant={tab === k ? 'primary' : 'ghost'} onClick={() => setTab(k)}>{k === 'team' ? (lang === 'ar' ? 'الفريق' : 'Team') : t[k]}</Button>
         ))}
         <span className="flex-1" />
         <Button variant="ghost" onClick={toggle}>{t.lang}</Button>
@@ -274,6 +281,9 @@ export function OwnerConsole() {
       {tab === 'events' && (plan && !plan.event_ticketing ? <Locked t={t} module="event_ticketing" /> : <OwnerEvents org={org} lang={lang} t={t} />)}
       {tab === 'customers' && <OwnerCustomers lang={lang} t={t} />}
       {tab === 'orders' && <OwnerOrders lang={lang} t={t} />}
+      {tab === 'reservations' && ((plan as unknown as Record<string, unknown> | null)?.table_reservations === false
+        ? <Locked t={t} module="table_reservations" /> : <OwnerReservations lang={lang} t={t} />)}
+      {tab === 'team' && role === 'tenant_admin' && <OwnerTeam lang={lang} />}
       {tab === 'profile' && <OwnerProfile t={t} />}
       {tab === 'subscription' && <OwnerSubscription lang={lang} t={t} plan={plan} />}
     </main>
@@ -345,7 +355,6 @@ function OwnerMenu({ org, lang, t }: PageProps & { org: string }) {
 
 function OwnerEvents({ org, lang, t }: PageProps & { org: string }) {
   const events = useLoad<OEvent>(useCallback(() => supabase.from('restaurant_events').select('id,title_ar,title_en,starts_at,capacity,price_piasters,is_published').order('starts_at', { ascending: false }), []));
-  const reservations = useLoad<OReservation>(useCallback(() => supabase.from('reservations').select('id,reserved_for,party_size,status,crm_customers(email,full_name)').order('reserved_for', { ascending: false }).limit(100), []));
   const [d, setD] = useState({ title_ar: '', title_en: '', starts: '', capacity: '', price: '' });
   const [err, setErr] = useState('');
 
@@ -380,13 +389,75 @@ function OwnerEvents({ org, lang, t }: PageProps & { org: string }) {
           </label>
         </Card>
       ))}
-      <h2 className="font-semibold">{t.reservations}</h2>
+    </section>
+  );
+}
+
+function OwnerReservations({ lang, t }: PageProps) {
+  const reservations = useLoad<OReservation>(useCallback(() => supabase.from('reservations').select('id,reserved_for,party_size,status,crm_customers(email,full_name)').order('reserved_for', { ascending: false }).limit(100), []));
+  return (
+    <section className="space-y-2">
+      {reservations.error && <p className="text-sm text-red-700">{reservations.error}</p>}
+      {!reservations.error && reservations.rows.length === 0 && <p className="text-sm opacity-70">{lang === 'ar' ? 'مفيش حجوزات لسه.' : 'No reservations yet.'}</p>}
       {reservations.rows.map((r) => (
         <Card key={r.id} className="flex items-center gap-2 p-2 text-sm">
           <span className="flex-1">{new Date(r.reserved_for).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')} · {r.party_size} · {r.crm_customers?.full_name || r.crm_customers?.email}</span>
           <Select value={r.status} onChange={async (x) => { await supabase.from('reservations').update({ status: x.target.value }).eq('id', r.id); reservations.reload(); }}>
             {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
           </Select>
+        </Card>
+      ))}
+    </section>
+  );
+}
+
+// ---- team: the owner adds staff by email; the database enforces the plan's seats ----
+interface Team { seats: number; members: { email: string; full_name: string | null; role: string }[]; invites: { email: string }[] }
+
+function OwnerTeam({ lang }: Pick<PageProps, 'lang'>) {
+  const ar = lang === 'ar';
+  const [team, setTeam] = useState<Team | null>(null);
+  const [email, setEmail] = useState('');
+  const [msg, setMsg] = useState('');
+  const load = useCallback(() => {
+    supabase.rpc('owner_list_team').then(({ data, error }) => { if (error) setMsg(error.message); else setTeam(data as Team); });
+  }, []);
+  useEffect(load, [load]);
+
+  async function invite() {
+    const { data, error } = await supabase.rpc('owner_invite_staff', { p_email: email });
+    setMsg(error ? error.message : data === 'added' ? (ar ? 'اتضاف للفريق.' : 'Added to the team.')
+      : (ar ? 'الدعوة اتسجلت. خليه يعمل حساب من صفحة الدخول بنفس الإيميل.' : 'Invite saved. Ask them to create an account on this sign-in page with the same email.'));
+    if (!error) setEmail('');
+    load();
+  }
+  async function remove(e: string) {
+    const { error } = await supabase.rpc('owner_remove_staff', { p_email: e });
+    setMsg(error ? error.message : '');
+    load();
+  }
+  const used = team ? team.members.filter((m) => m.role === 'manager').length + team.invites.length : 0;
+
+  return (
+    <section className="space-y-3">
+      <Card className="flex flex-wrap items-center gap-2 p-3">
+        <Input type="email" placeholder={ar ? 'إيميل الموظف' : 'Staff email'} value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Button onClick={invite} disabled={!email}>{ar ? 'أضف موظف' : 'Add staff'}</Button>
+        {team && <Badge>{used} / {team.seats}</Badge>}
+      </Card>
+      {msg && <p role="status" className="text-sm">{msg}</p>}
+      {team?.members.map((m) => (
+        <Card key={m.email} className="flex items-center gap-2 p-2 text-sm">
+          <span className="flex-1">{m.full_name || m.email} · {m.email}</span>
+          <Badge>{m.role === 'tenant_admin' ? (ar ? 'المالك' : 'Owner') : (ar ? 'موظف' : 'Staff')}</Badge>
+          {m.role === 'manager' && <Button variant="ghost" onClick={() => remove(m.email)}>{ar ? 'شيل' : 'Remove'}</Button>}
+        </Card>
+      ))}
+      {team?.invites.map((x) => (
+        <Card key={x.email} className="flex items-center gap-2 p-2 text-sm">
+          <span className="flex-1">{x.email}</span>
+          <Badge>{ar ? 'مستني يعمل حساب' : 'Invited'}</Badge>
+          <Button variant="ghost" onClick={() => remove(x.email)}>{ar ? 'إلغاء' : 'Cancel'}</Button>
         </Card>
       ))}
     </section>
